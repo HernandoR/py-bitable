@@ -7,9 +7,11 @@ This example demonstrates how to use the Bitable class to:
 """
 
 import os
-from py_bitable import Bitable
-from pydantic import BaseModel, Field
 from typing import Optional
+
+from pydantic import BaseModel, Field
+
+from py_bitable import Bitable
 
 
 # Define a custom Pydantic schema for your records
