@@ -1,7 +1,7 @@
 [project]
-name = "awesome_project"
+name = "py-bitable"
 version = "0.1.0"
-description = "Add your description here"
+description = "Python library for uploading attachments and creating records in Feishu Bitable"
 readme = "README.md"
 authors = [
     { name = "HernandoR", email = "lzhen.dev@outlook.com" }
@@ -9,10 +9,13 @@ authors = [
 requires-python = ">=3.10"
 dependencies = [
     "rootutils>=1.0.7",
+    "pydantic>=2.0.0",
+    "httpx>=0.27.0",
+    "typing-extensions>=4.0.0",
 ]
 
 [project.scripts]
-awesome_project = "awesome_project:main"
+py-bitable = "py_bitable:main"
 
 [build-system]
 requires = ["hatchling"]
