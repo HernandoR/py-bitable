@@ -34,9 +34,27 @@ class Bitable:
         """
         self.app_token = app_token
         self.table_id = table_id
-        self.client = BitableApiClient(app_id, app_secret, base_url)
+        self.client: BitableApiClient = BitableApiClient(app_id, app_secret, base_url)
         self._field_metadata: Optional[List[FieldMetadata]] = None
         self._field_name_to_id: Optional[Dict[str, str]] = None
+
+    def create_table(
+        self,
+        table_name: str,
+        field_metadata_list: List[FieldMetadata] = None,
+    ):
+        """
+        Create a new table in the Bitable app.
+        ref: https://open.feishu.cn/document/server-docs/docs/bitable-v1/app-table-field/guide
+        """
+        d = {
+            "table": {"name": table_name},
+        }
+        if field_metadata_list is not None:
+            d["table"]["fields"] = [
+                field.model_dump(exclude_none=True) for field in field_metadata_list
+            ]
+        return self.client.create_table(self.app_token, d)
 
     def get_table_schema(self) -> List[FieldMetadata]:
         """Fetch table schema from Feishu API.
@@ -69,6 +87,45 @@ class Bitable:
 
         return self._field_name_to_id.get(field_name)
 
+    def upload_attachment_buffer(
+        self, file_buffer: bytes, file_name: str, parent_type: str = "bitable_image"
+    ) -> AttachmentFile:
+        """Upload an attachment file from a byte buffer.
+
+        Args:
+            file_buffer: Byte content of the file to upload
+            file_name: Name of the file
+            parent_type: Parent type for the upload
+        Returns:
+            AttachmentFile with file token
+        """
+        # first write buffer to a temp file with name $filename in memory
+        import os
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
+            tmp_file.write(file_buffer)
+            tmp_file_path = tmp_file.name
+        try:
+            file_token = self.client.upload_file(
+                tmp_file_path,
+                parent_type=parent_type,
+                parent_node=self.app_token,
+                file_name=file_name,
+            )
+            print(f"  Uploaded file '{file_name}' with token: {file_token}")
+
+            return AttachmentFile(
+                file_token=file_token,
+                name=file_name,
+                size=len(file_buffer),
+            )
+        except Exception as e:
+            print(f"  Failed to upload file '{file_name}': {e}")
+            return None
+        finally:
+            os.remove(tmp_file_path)
+
     def upload_attachment(
         self, file_path: str, parent_type: str = "bitable_image"
     ) -> AttachmentFile:
@@ -83,9 +140,14 @@ class Bitable:
         """
         import os
 
-        file_token = self.client.upload_file(
-            file_path, parent_type=parent_type, parent_node=self.app_token
-        )
+        try:
+            file_token = self.client.upload_file(
+                file_path, parent_type=parent_type, parent_node=self.app_token
+            )
+            print(f"  Uploaded file '{file_path}' with token: {file_token}")
+        except Exception as e:
+            print(f"  Failed to upload file '{file_path}': {e}")
+            return None
 
         return AttachmentFile(
             file_token=file_token,
@@ -96,13 +158,11 @@ class Bitable:
     def create_record(
         self,
         record_data: Union[Dict[str, Any], BaseModel],
-        use_field_names: bool = True,
     ) -> Dict[str, Any]:
         """Create a single record in the table.
 
         Args:
             record_data: Record data as dict or Pydantic model
-            use_field_names: If True, convert field names to field IDs
 
         Returns:
             Created record data
@@ -112,20 +172,6 @@ class Bitable:
             record_dict = record_data.model_dump(exclude_none=True)
         else:
             record_dict = record_data
-
-        # Convert field names to field IDs if requested
-        if use_field_names:
-            self.get_table_schema()  # Ensure schema is loaded
-            converted_dict = {}
-            for field_name, value in record_dict.items():
-                field_id = self.get_field_id(field_name)
-                if field_id:
-                    converted_dict[field_id] = value
-                else:
-                    # If field ID not found, use the original name
-                    # This allows users to pass field IDs directly
-                    converted_dict[field_name] = value
-            record_dict = converted_dict
 
         # Create record
         response = self.client.batch_create_records(
@@ -139,13 +185,11 @@ class Bitable:
     def create_records(
         self,
         records_data: List[Union[Dict[str, Any], BaseModel]],
-        use_field_names: bool = True,
     ) -> List[Dict[str, Any]]:
         """Batch create records in the table.
 
         Args:
             records_data: List of record data (dicts or Pydantic models)
-            use_field_names: If True, convert field names to field IDs
 
         Returns:
             List of created record data
@@ -158,19 +202,6 @@ class Bitable:
                 record_dict = record_data.model_dump(exclude_none=True)
             else:
                 record_dict = record_data
-
-            # Convert field names to field IDs if requested
-            if use_field_names:
-                self.get_table_schema()  # Ensure schema is loaded
-                converted_dict = {}
-                for field_name, value in record_dict.items():
-                    field_id = self.get_field_id(field_name)
-                    if field_id:
-                        converted_dict[field_id] = value
-                    else:
-                        # If field ID not found, use the original name
-                        converted_dict[field_name] = value
-                record_dict = converted_dict
 
             records_list.append(record_dict)
 
@@ -185,7 +216,6 @@ class Bitable:
         self,
         record_data: Union[Dict[str, Any], BaseModel],
         attachment_files: Optional[Dict[str, Union[str, List[str]]]] = None,
-        use_field_names: bool = True,
     ) -> Dict[str, Any]:
         """Upload attachments and create a record with them.
 
@@ -193,7 +223,6 @@ class Bitable:
             record_data: Record data as dict or Pydantic model
             attachment_files: Dict mapping field names to file paths
                              (can be single path or list of paths)
-            use_field_names: If True, convert field names to field IDs
 
         Returns:
             Created record data
@@ -221,4 +250,4 @@ class Bitable:
                 record_dict[field_name] = attachments
 
         # Create the record
-        return self.create_record(record_dict, use_field_names=use_field_names)
+        return self.create_record(record_dict)

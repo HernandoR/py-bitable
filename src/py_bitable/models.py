@@ -4,6 +4,8 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from py_bitable.field_enums import FieldTypeEnum
+
 
 class AttachmentFile(BaseModel):
     """Attachment file information."""
@@ -41,19 +43,20 @@ class BitableRecord(BaseModel):
     fields: Dict[str, Any] = Field(..., description="Record fields")
 
 
-class FieldType(BaseModel):
-    """Field type information."""
+# class FieldType(BaseModel):
+#     """Field type information."""
 
-    type: str = Field(..., description="Field type")
-    # Add more specific type properties as needed
+#     type: FieldTypeEnum = Field(..., description="Field type")
 
 
 class FieldMetadata(BaseModel):
     """Metadata for a table field."""
 
-    field_id: str = Field(..., description="Field ID")
+    field_id: str = Field(default=None, description="Field ID")
     field_name: str = Field(..., description="Field name")
-    type: int = Field(..., description="Field type code")
+    type: FieldTypeEnum = Field(
+        default=FieldTypeEnum.TEXT_BASE, description="Field type code"
+    )
     property: Optional[Dict[str, Any]] = Field(None, description="Field properties")
     description: Optional[str] = Field(None, description="Field description")
     is_primary: Optional[bool] = Field(None, description="Whether this is primary key")

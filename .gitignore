@@ -1,4 +1,5 @@
 .idea/
+.gitconfig
 .coverage
 .venv/
 cover/
@@ -13,3 +14,7 @@ doc/source/_apidoc
 doc/source/_auto_examples
 .vscode
 *.egg-info/
+
+.env
+
+output/

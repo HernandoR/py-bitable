@@ -9,9 +9,13 @@ This example demonstrates how to use the Bitable class to:
 import os
 from typing import Optional
 
+from dotenv import find_dotenv, load_dotenv
 from pydantic import BaseModel, Field
 
 from py_bitable import Bitable
+from py_bitable.models import FieldMetadata
+
+load_dotenv(find_dotenv())
 
 
 # Define a custom Pydantic schema for your records
@@ -23,6 +27,16 @@ class TaskRecord(BaseModel):
     Status: str = Field(default="Todo", description="Task status")
     Priority: int = Field(default=1, description="Task priority (1-5)")
     Assignee: Optional[str] = Field(None, description="Person assigned to task")
+
+    @classmethod
+    def get_fields_list(cls):
+        return [
+            FieldMetadata(field_name="Name", type=1),
+            FieldMetadata(field_name="Description", type=1),
+            FieldMetadata(field_name="Status", type=1),
+            FieldMetadata(field_name="Priority", type=2),
+            FieldMetadata(field_name="Assignee", type=1),
+        ]
 
 
 def main():
@@ -54,6 +68,19 @@ def main():
         app_token=app_token,
         table_id=table_id,
     )
+    print("=== Creating table with specified fields ===")
+
+    create_table_response = bitable.create_table(
+        "recons_test",
+        TaskRecord.get_fields_list(),
+    )
+    pass
+    table_id = create_table_response.get("table_id")
+    assert table_id is not None, (
+        f"Table ID should not be None in response: {create_table_response}"
+    )
+    print(f"  Created table with ID: {table_id}")
+    bitable.table_id = table_id
 
     # Example 1: Get table schema
     print("=== Getting table schema ===")
@@ -103,18 +130,18 @@ def main():
     print()
 
     # Uncomment to test file upload:
-    # test_file = "/path/to/your/test/file.pdf"
-    # if os.path.exists(test_file):
-    #     record = bitable.upload_and_create_record(
-    #         record_data={
-    #             "Name": "Task with attachment",
-    #             "Description": "This task has a file attached"
-    #         },
-    #         attachment_files={
-    #             "Attachments": test_file
-    #         }
-    #     )
-    #     print(f"  Created record with attachment: {record.get('record_id')}")
+    test_file = "output/file.txt"
+    with open(test_file, "w") as f:
+        f.write("This is a test file for attachment upload.\n")
+
+    record = bitable.upload_and_create_record(
+        record_data={
+            "Name": "Task with attachment",
+            "Description": "This task has a file attached",
+        },
+        attachment_files={"Attachments": test_file},
+    )
+    print(f"  Created record with attachment: {record.get('record_id')}")
 
     print("=== Examples completed ===")
 
