@@ -344,7 +344,18 @@ class BitableApiClient:
 
         payload = {"records": [{"fields": record} for record in records]}
         # data = self.http_post(url, headers=headers, json=payload, timeout=30.0)
-        data = self.client_qps5.limited_post(url, headers=headers, json=payload)
+        for _attempt in range(self._max_retries):
+            try:
+                data = self.client_qps5.limited_post(url, headers=headers, json=payload)
+                break
+            except Exception as e:
+                if _attempt == self._max_retries - 1:
+                    raise e
+                time.sleep(self._retry_delay)
+        else:
+            # This else corresponds to the for loop, executed if no break occurs
+            # but in this case, it should never be reached due to the raise in except
+            raise RuntimeError("Failed to send request after retries")
 
         if data.get("code") != 0:
             raise ValueError(f"Failed to create records: {data}")
