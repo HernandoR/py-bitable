@@ -10,7 +10,6 @@ dependencies = [
     "pydantic>=2.0.0",
     "httpx>=0.27.0",
     "typing-extensions>=4.0.0",
-    "baseopensdk @ https://lf3-static.bytednsdoc.com/obj/eden-cn/lmeh7phbozvhoz/base-open-sdk/baseopensdk-0.0.13-py3-none-any.whl",
     "loguru>=0.7.3",
     "ratelimit>=2.2.1",
 ]
